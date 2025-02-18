@@ -69,7 +69,7 @@ class DifferentialController(ActionTerm):
         # parse clip
         if self.cfg.clip is not None:
             if isinstance(cfg.clip, dict):
-                self._clip = torch.tensor([[-float("inf"), float("inf")]], device=self.device).repeat(
+                self._clip = torch.tensor([[-float("-1.0"), float("1.0")]], device=self.device).repeat(
                     self.num_envs, self.action_dim, 1
                 )
                 index_list, _, value_list = string_utils.resolve_matching_names_values(self.cfg.clip, self._joint_names)
@@ -124,7 +124,6 @@ class DifferentialController(ActionTerm):
         joint_vel_targets = joint_vel_targets.squeeze(1)
         # setting joint velocity targets
         self._asset.set_joint_velocity_target(joint_vel_targets, self.joint_idxs)
-
 
     def reset(self, env_ids: Sequence[int] | None = None) -> None:
         print(f"{env_ids}")

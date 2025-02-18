@@ -23,14 +23,22 @@ from omni.isaac.lab_tasks.manager_based.classic.differential_bot import DIFF_BOT
 
 # custom mdp modules
 # import differential_bot.mdp as cmdp
+import torch
 
 # Bot scene configuration
 @configclass
 class DiffBotSceneCfg(InteractiveSceneCfg):
+
     # default ground plane
     ground_plane = AssetBaseCfg(
         prim_path="/World/GroundPlane",
-        spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)) # size in square metres
+        spawn=sim_utils.GroundPlaneCfg(
+            size=(100.0, 100.0),
+            physics_material=sim_utils.RigidBodyMaterialCfg(
+                static_friction=0.4,
+                dynamic_friction=0.4
+            )
+        ) 
     )
 
     lights = AssetBaseCfg(
@@ -39,22 +47,22 @@ class DiffBotSceneCfg(InteractiveSceneCfg):
     )
 
     # rigid cube prop model (for the environment)
-    cube = AssetBaseCfg(
-        prim_path="/World/Cube",
-        spawn=sim_utils.CuboidCfg(
-            mass_props=sim_utils.MassPropertiesCfg(
-                mass=100.0
-            ),
-            size=[1.0, 1.0, 1.0],
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(),
-            collision_props=sim_utils.CollisionPropertiesCfg(),
-            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0))
-        ),
-        init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(3.0, 0.0, 0.5), 
-            rot=(1.0, 0.0, 0.0, 0.0) # in quaternion [w,x,y,z]
-        )
-    )
+    # cube = AssetBaseCfg(
+    #     prim_path="/World/Cube",
+    #     spawn=sim_utils.CuboidCfg(
+    #         mass_props=sim_utils.MassPropertiesCfg(
+    #             mass=100.0
+    #         ),
+    #         size=[1.0, 1.0, 1.0],
+    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(),
+    #         collision_props=sim_utils.CollisionPropertiesCfg(),
+    #         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0))
+    #     ),
+    #     init_state=RigidObjectCfg.InitialStateCfg(
+    #         pos=(3.0, 0.0, 0.5), 
+    #         rot=(1.0, 0.0, 0.0, 0.0) # in quaternion [w,x,y,z]
+    #     )
+    # )
 
     # ===============================================================================
     # Scene entities
@@ -72,7 +80,7 @@ class DiffBotSceneCfg(InteractiveSceneCfg):
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0))
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
-            pos=(3.0, 0.0, 0.12), 
+            pos=(2.0, 1.0, 0.12), 
             rot=(1.0, 0.0, 0.0, 0.0) # in quaternion [w,x,y,z]
         )
     )
@@ -84,22 +92,5 @@ class DiffBotSceneCfg(InteractiveSceneCfg):
         prim_path="{ENV_REGEX_NS}/Robot/diff_bot/imu_link",
         debug_vis=True
     )
-
-    
-    # lidar sensor to the bot 
-    # lidar: RayCasterCfg = RayCasterCfg(
-    #     prim_path="{ENV_REGEX_NS}/Robot/diff_bot/lidar_link",
-    #     update_period=1/60,
-    #     offset=RayCasterCfg.OffsetCfg(pos=(0, 0, 0.55)),
-    #     mesh_prim_paths=["/World/GroundPlane"],
-    #     attach_yaw_only=True,
-    #     pattern_cfg=patterns.LidarPatternCfg(
-    #         channels=100, vertical_fov_range=[-90, 90], horizontal_fov_range=[-90, 90], horizontal_res=1.0
-    #     ),
-    #     debug_vis=True,
-    # )
-
-
-
 
 

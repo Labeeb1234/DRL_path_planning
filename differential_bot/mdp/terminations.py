@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 def reached_goal_termination(
     env: ManagerBasedRLEnv,
-    goal_position_tolerance: float,
+    goal_distance_tolerance: float,
     goal_angle_tolerance: float,
     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     target_cfg: SceneEntityCfg = SceneEntityCfg("target"),
@@ -41,4 +41,4 @@ def reached_goal_termination(
     dist_diff = torch.sqrt(torch.sum(torch.square(pose_diffs), dim=1)) # (num_envs,)
     dist_diff = dist_diff.unsqueeze(1) # (num_envs, 1)
 
-    return (dist_diff[:, 0] < goal_position_tolerance) & (torch.abs(angle_diffs[:, 0]) < goal_angle_tolerance)
+    return (dist_diff[:, 0] < goal_distance_tolerance) & (torch.abs(angle_diffs[:, 0]) < goal_angle_tolerance)

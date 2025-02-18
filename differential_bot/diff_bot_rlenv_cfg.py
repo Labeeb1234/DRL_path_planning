@@ -13,19 +13,22 @@ from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
 from omni.isaac.lab.scene import InteractiveSceneCfg, InteractiveScene
 from omni.isaac.lab.sim import SimulationContext
 from omni.isaac.lab.utils import configclass
+from omni.isaac.lab.utils.datasets import HDF5DatasetFileHandler
 
 from omni.isaac.lab.envs import ManagerBasedEnv, ManagerBasedEnvCfg, ManagerBasedRLEnv, ManagerBasedRLEnvCfg
 
 # ----------------- mdp cfg modules ------------------------------
 import omni.isaac.lab.envs.mdp as mdp
-from omni.isaac.lab.managers import SceneEntityCfg
+from omni.isaac.lab.managers import SceneEntityCfg, RecorderManagerBaseCfg, DatasetExportMode
 from omni.isaac.lab.managers import ObservationGroupCfg as ObsGroup
 from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
 from omni.isaac.lab.managers import EventTermCfg as EventTerm
 from omni.isaac.lab.managers import ActionTermCfg as ActionTerm
 from omni.isaac.lab.managers import TerminationTermCfg as DoneTerm
 from omni.isaac.lab.managers import RewardTermCfg as RewTerm
-#---------------------------------------------------------------
+#-----------------------------------------------------------
+
+
 
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 from omni.isaac.lab.devices import Se2Keyboard
@@ -50,27 +53,40 @@ class ActionCfg:
 class ObservationCfg:
     @configclass
     class PolicyCfg(ObsGroup):
-        # distance to goal (need fixing ---> dimensional incompatibility)
+        # (relative) distance to goal
         dists_to_goal = ObsTerm(func=cmdp.distance_to_goal)
-        # relative position and orientation of goal wrt bot frame
-        rel_pose_to_goal = ObsTerm(
-            func=cmdp.relative_pose_to_goal
-        ) # from custom observation space module (only x,y,z)
-
+        # (relative) orientation to goal
+        angles_to_goal = ObsTerm(func=cmdp.orientation_to_goal)
+        # rel_pose_to_goal = ObsTerm(
+        #     func=cmdp.relative_pose_to_goal
+        # ) # from custom observation space module (only x,y,z)
         # ---------------------------------------------------
         # distance to obstacles (need to find an alternative)
         # ---------------------------------------------------
-        
-        # current bot pose
-        bot_pos = ObsTerm(func=mdp.root_pos_w)
-        # bot frame velocites
-        bot_lin_vel = ObsTerm(func=mdp.base_lin_vel)
-        bot_ang_vel = ObsTerm(func=mdp.base_ang_vel)
+        # current bot pose and target pose
+        # bot_pos = ObsTerm(
+        #     func=mdp.root_pos_w,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("robot")
+        #     }
+        # )
+        # target_pos = ObsTerm(
+        #     func=mdp.root_pos_w,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg("target")
+        #     }
+        # )
+        # bot frame velocities
+        bot_frame_velocity = ObsTerm(func=cmdp.bot_velocities)
+
+        # history_length = 5
+        # flatten_history_dim = False 
 
         def __post_init__(self) -> None:
             self.enable_corruption = False
             self.concatenate_terms = True
-    
+            # self.history_length = 5
+
     policy: PolicyCfg = PolicyCfg()
 
 
@@ -95,21 +111,21 @@ class EventCfg:
         mode="reset",
         params={
             "asset_cfg": SceneEntityCfg("robot"),
-            "pose_range": {"x": (-3.0, 3.0), "y": (-3.0, 3.0), "z": (-0.01, 0.01)},
+            "pose_range": {"x": (0.0, 0.0), "y": (0.0, 0.0), "z": (-0.01, 0.01)},
             "velocity_range": {}
         }
     )
 
     # randomize goal poses
-    randomize_goal_poses = EventTerm(
-        func=mdp.reset_root_state_uniform,
-        mode="reset",
-        params={
-            "asset_cfg": SceneEntityCfg("target"),
-            "pose_range": {"x": (-3.0, 3.0), "y": (-3.0, 3.0)},
-            "velocity_range": {}
-        }
-    )
+    # randomize_goal_poses = EventTerm(
+    #     func=mdp.reset_root_state_uniform,
+    #     mode="reset",
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("target"),
+    #         "pose_range": {"x": (-3.0, 3.0), "y": (3.0, 4.0)},
+    #         "velocity_range": {}
+    #     }
+    # )
 
 @configclass
 class TerminationsCfg:
@@ -122,12 +138,15 @@ class TerminationsCfg:
     done_goal = DoneTerm(
         func=cmdp.reached_goal_termination,
         params={
-            "goal_position_tolerance": 0.2,
-            "goal_angle_tolerance": 0.2
+            "goal_distance_tolerance": 0.25,
+            "goal_angle_tolerance": 0.3
         },
         time_out=True
     )    
     # for now only time_out and goal_terminations termination
+
+    # terminate if bot goes out of certain specified environment bounds
+    
 
 @configclass
 class RewardCfg:
@@ -136,15 +155,47 @@ class RewardCfg:
         func=mdp.is_alive,
         weight=-1.0
     )
-    # sparse reward structure for the task (just for env testing)
+    # waypoint_reward_structure
     goal_reward = RewTerm(
         func=cmdp.reached_goal_position,
-        weight=2.0,
+        weight=1.0,
         params={
-            "goal_position_tolerance": 0.3,
-            "goal_angle_tolerance": 0.3
+            "goal_distance_tolerance": 0.25, # 25cm x-y__accuracy
+            "goal_angle_tolerance": 0.3, # 0.3 radians accuracy in final yaw 
+            "distance_scale": 10.0,
+            "reduction_scale": 2.0,
+            "yaw_scale": 0.5
         }
     )
+    # joint angu;lar velocity penalty
+    joint_vel_penalty = RewTerm(
+        func=mdp.joint_vel_l2,
+        weight=-0.005,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=["Revolute_1", "Revolute_2", "Revolute_3_01", "Revolute_4_01"])
+        }
+    )
+    # penalty for high body velocities
+    bot_velocity_penalty = RewTerm(
+        func=cmdp.bot_velocity_penalty,
+        weight=-0.005
+    ) 
+
+
+# for data recording in HDF5 format
+@configclass
+class RecordCfg(RecorderManagerBaseCfg):
+    dataset_file_handler_class_type: type = HDF5DatasetFileHandler
+    dataset_export_dir_path: str = "/home/inlabust/labeeb/logs"
+    """The directory path where the recorded datasets are exported."""
+    dataset_filename: str = "dataset"
+    """Dataset file name without file extension."""
+    dataset_export_mode: DatasetExportMode = DatasetExportMode.EXPORT_ALL
+    """The mode to handle episode exports."""
+
+    
+    pre_step_obsrecorder = mdp.PreStepFlatPolicyObservationsRecorderCfg()
+
 
 # creating the manager based env
 @configclass
@@ -160,14 +211,23 @@ class DiffBotRLEnvCfg(ManagerBasedRLEnvCfg):
     rewards = RewardCfg()
     terminations = TerminationsCfg()
 
+    # to record episodic and steps_per_episode data
+    # recorders = RecordCfg()
+    
     def __post_init__(self):
         # viewport view settings
         self.viewer.eye = [2.5, 0.0, 4.0]
         self.viewer.lookat = [0.0, 0.0, 2.0]
 
-        self.episode_length_s = 5 # in [s] (5s)
+        self.episode_length_s = 10 # in [s] (10s)
         # env_step update rate/period settings  ==> sim_dt/decimation = step_dt
         self.decimation = 4 # 100Hz 
         # simulation update rate/period settings
-        self.sim.dt = 0.005 # 5ms: 200Hz
+        self.sim.dt = 1/200 # 5ms: 200Hz
         self.sim.render_interval = self.decimation
+    
+        
+        
+    
+
+
