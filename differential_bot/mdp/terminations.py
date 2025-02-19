@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
     from omni.isaac.lab.managers.command_manager import CommandTerm
 
+import omni.isaac.lab_tasks.manager_based.classic.differential_bot.mdp.observations as mdp_utils
 
 
 def reached_goal_termination(
@@ -42,3 +43,16 @@ def reached_goal_termination(
     dist_diff = dist_diff.unsqueeze(1) # (num_envs, 1)
 
     return (dist_diff[:, 0] < goal_distance_tolerance) & (torch.abs(angle_diffs[:, 0]) < goal_angle_tolerance)
+
+# circular bound condition
+def out_of_bounds(
+    env: ManagerBasedRLEnv,
+    distance_bound: float,
+    robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+):
+    robot = env.scene[robot_cfg.name]
+    robot_poses = robot.data.root_state_w
+
+    bot_dist = torch.sqrt(torch.sum(torch.square(robot_poses[:, :2]), dim=1))
+   
+    return bot_dist > distance_bound

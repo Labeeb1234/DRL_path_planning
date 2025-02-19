@@ -1,0 +1,34 @@
+# Core DQN parameters
+policy: "MlpPolicy"
+learning_rate: 1e-4  # or schedule like {"schedule": "linear", "initial_value": 1e-4, "final_value": 5e-5}
+buffer_size: 1000000  # Size of the replay buffer
+learning_starts: 50000  # How many steps before learning starts
+batch_size: 32  # Minibatch size for each gradient update
+
+# Discount and target network update
+gamma: 0.99  # Discount factor
+tau: 1.0  # Soft update coefficient for target network (1 = hard update)
+train_freq: 4  # Update the model every 4 steps
+gradient_steps: 1  # How many gradient steps to do after each rollout
+target_update_interval: 10000  # Update the target network every 10000 steps
+
+# Exploration parameters
+exploration_fraction: 0.1  # Fraction of entire training period over which exploration rate is reduced
+exploration_initial_eps: 1.0  # Initial value of random action probability
+exploration_final_eps: 0.05  # Final value of random action probability
+
+# Additional optimization parameters
+optimize_memory_usage: False  # Whether to store only the current observation
+max_grad_norm: 10  # Max value for gradient clipping
+
+# Prioritized replay buffer parameters (optional)
+prioritized_replay: False  # Use prioritized replay buffer
+prioritized_replay_alpha: 0.6  # Alpha parameter for prioritized replay
+prioritized_replay_beta0: 0.4  # Initial beta parameter for prioritized replay
+prioritized_replay_beta_iters: None  # Number of iterations over which beta is annealed
+prioritized_replay_eps: 1e-6  # Epsilon to add to the TD errors when updating priorities
+
+# Network architecture
+policy_kwargs:
+  net_arch: [256, 256]  # Size of the hidden layers
+  # activation_fn: "ReLU"  # Uncomment to specify non-default activation

@@ -90,7 +90,7 @@ class DiffBotSceneCfg(InteractiveSceneCfg):
     # adding sensors to the bot
     imu: ImuCfg = ImuCfg(
         prim_path="{ENV_REGEX_NS}/Robot/diff_bot/imu_link",
-        debug_vis=True
+        debug_vis=False
     )
 
 

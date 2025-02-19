@@ -78,7 +78,7 @@ def distance_to_goal(
     previous_distances = torch.tensor(previous_dists.get(), device=env.device, dtype=torch.float32).unsqueeze(1)
     ddists = torch.sub(dists_to_goal, previous_distances).squeeze(1)
     distance_data = torch.cat((dists_to_goal, ddists), dim=1)
-    # print(f"Distance Data: {distance_data}")
+    print(f"Distance To Goal: {distance_data[:, 0]}")
 
     return distance_data
 
@@ -93,6 +93,7 @@ def orientation_to_goal(
     angles_diff = goal_pose_relative[:, 3]
     angles_diff = angles_diff.unsqueeze(1)
     angles_diff = math_utils.wrap_to_pi(angles_diff)
+    print(f"Orientation To Goal: {angles_diff[:, 0]}")
     
     return angles_diff
 

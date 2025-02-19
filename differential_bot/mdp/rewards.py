@@ -27,6 +27,7 @@ def reached_goal_position(
     goal_angle_tolerance: float,
     distance_scale: float,
     reduction_scale: float,
+    yaw_alignment_radius: float,
     yaw_scale: float,
     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     target_cfg: SceneEntityCfg = SceneEntityCfg("target")
@@ -64,16 +65,22 @@ def reached_goal_position(
     distance_reward = -distance_scale*(torch.sign(dist_reduc)/(1+dist_diff)) # using inverse hyperbole function (smoother)
     distance_reward = distance_reward.squeeze(1)
 
-    # yaw change reward
-    yaw_change_reward = yaw_scale*torch.cos(angle_diffs.squeeze(1)) # flaw
-    print(f"yaw reward: {yaw_change_reward}")
+    # Calculate proximity mask (1.0 when close to goal, 0.0 when far)
+    proximity_mask = torch.where(
+        dist_diff[:, 0] < yaw_alignment_radius,
+        torch.ones_like(dist_diff[:, 0]),
+        torch.zeros_like(dist_diff[:, 0])
+    )
 
     # new yaw penalty/reward (to be tested)
-    # yaw_change_reward = yaw_scale*(1-2.0*(torch.abs(angle_diffs[:, 1]))/(3.14/2))
+    yaw_change_reward = yaw_scale*(1-2.0*(torch.abs(angle_diffs[:, 0]))/(3.14/2))
+    # yaw_change_reward = yaw_scale*torch.cos(angle_diffs.squeeze(1))
+    yaw_change_reward = yaw_change_reward * proximity_mask
+    # print(f"yaw reward: {yaw_change_reward}")
 
     # Additional bonus for reaching the goal
     goal_reached_bonus = torch.where(
-        (dist_diff[:, 0] < goal_distance_tolerance) & (angle_diffs[:, 0] < goal_angle_tolerance),
+        (dist_diff[:, 0] < goal_distance_tolerance),
         torch.tensor(15.0),
         torch.tensor(0.0)
     )
@@ -89,6 +96,3 @@ def bot_velocity_penalty(
     robot_vel = cmdp_utils.bot_velocities(env=env, robot_cfg=robot_cfg) # (num_envs, 2) (bot_xvel, bot_yawvel)
     return torch.sum(torch.square(robot_vel), dim=1)
 
-
-def reward_component_checker(reward_type, reward_values):
-    pass

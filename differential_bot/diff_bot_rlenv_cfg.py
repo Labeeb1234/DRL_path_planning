@@ -45,7 +45,7 @@ class ActionCfg:
         joint_names=["Revolute_1", "Revolute_2", "Revolute_3_01", "Revolute_4_01"],
         wheel_diameter=0.4,
         wheel_separation=0.5778, 
-        scale=(1.0, 1.0)
+        scale=(0.5, 1.0)
     )
     
 # observation space configuration
@@ -134,7 +134,7 @@ class TerminationsCfg:
         func=mdp.time_out,
         time_out=True
     )
-
+    # terminate if bot reaches the goal within certain tolerance limit
     done_goal = DoneTerm(
         func=cmdp.reached_goal_termination,
         params={
@@ -143,9 +143,13 @@ class TerminationsCfg:
         },
         time_out=True
     )    
-    # for now only time_out and goal_terminations termination
-
     # terminate if bot goes out of certain specified environment bounds
+    out_of_bounds = DoneTerm(
+        func=cmdp.out_of_bounds,
+        params={
+            "distance_bound": 5.0 # radius of 5[m]
+        }
+    )
     
 
 @configclass
@@ -153,49 +157,39 @@ class RewardCfg:
     # penalty for just existing
     alive_reward = RewTerm(
         func=mdp.is_alive,
-        weight=-1.0
+        weight=-0.1
     )
+
     # waypoint_reward_structure
     goal_reward = RewTerm(
         func=cmdp.reached_goal_position,
         weight=1.0,
         params={
-            "goal_distance_tolerance": 0.25, # 25cm x-y__accuracy
-            "goal_angle_tolerance": 0.3, # 0.3 radians accuracy in final yaw 
+            "goal_distance_tolerance": 0.36, # 36cm xy_accuracy
+            "goal_angle_tolerance": 0.3, # 0.3rads yaw_accuracy  
             "distance_scale": 10.0,
             "reduction_scale": 2.0,
+            "yaw_alignment_radius": 1.0,
             "yaw_scale": 0.5
         }
     )
-    # joint angu;lar velocity penalty
-    joint_vel_penalty = RewTerm(
-        func=mdp.joint_vel_l2,
-        weight=-0.005,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["Revolute_1", "Revolute_2", "Revolute_3_01", "Revolute_4_01"])
-        }
-    )
-    # penalty for high body velocities
-    bot_velocity_penalty = RewTerm(
-        func=cmdp.bot_velocity_penalty,
-        weight=-0.005
-    ) 
-
+    # joint angular velocity penalty
+    # joint_vel_penalty = RewTerm(
+    #     func=mdp.joint_vel_l2,
+    #     weight=0.005,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names=["Revolute_1", "Revolute_2", "Revolute_3_01", "Revolute_4_01"])
+    #     }
+    # )
 
 # for data recording in HDF5 format
 @configclass
 class RecordCfg(RecorderManagerBaseCfg):
     dataset_file_handler_class_type: type = HDF5DatasetFileHandler
     dataset_export_dir_path: str = "/home/inlabust/labeeb/logs"
-    """The directory path where the recorded datasets are exported."""
     dataset_filename: str = "dataset"
-    """Dataset file name without file extension."""
     dataset_export_mode: DatasetExportMode = DatasetExportMode.EXPORT_ALL
-    """The mode to handle episode exports."""
-
-    
     pre_step_obsrecorder = mdp.PreStepFlatPolicyObservationsRecorderCfg()
-
 
 # creating the manager based env
 @configclass
