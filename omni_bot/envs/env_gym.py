@@ -1,6 +1,7 @@
 from typing import Optional
 import gymnasium as gym
 import numpy as np
+import torch
 import pygame
 from omni_bot.omni_bot import OmniBot  
 
@@ -187,6 +188,7 @@ class OmniBotEnv(gym.Env):
         return xw, yw
     # ---------------------------------------------------------------
 
+# version-1 under development
 # (down here are the envs for the next versions)
 # class OmniBotEnv(gym.Env):
 #     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}

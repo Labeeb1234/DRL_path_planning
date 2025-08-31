@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from omni_bot.utils.utils import WrapToPi, get_transform
 
 class OmniBot:
