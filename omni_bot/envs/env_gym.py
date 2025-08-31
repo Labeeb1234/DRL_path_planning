@@ -61,8 +61,8 @@ class OmniBotEnv(gym.Env):
         # set the robot to the origin
         self.robot.pose = np.array([0.0, 0.0, 0.0]).reshape(3,1)
         # random robot pose as well as target pose on reset
-        self.robot.pose[0:2] = self.size[0]*np.random.random(size=(2,1)) - self.size[0]/2
-        self.robot.pose[2,0] = np.random.uniform(-np.pi, np.pi) # randomize orientation
+        # self.robot.pose[0:2] = self.size[0]*np.random.random(size=(2,1)) - self.size[0]/2
+        # self.robot.pose[2,0] = np.random.uniform(-np.pi, np.pi) # randomize orientation
         self.robot_trajectory = [self.robot.pose[0:2].flatten().tolist()] # reset trajectory
         self.target_pose = self.target_pose # set initial target pose
         self.target_pose[0:2] = self.size[0]*np.random.random(size=(2,1)) - self.size[0]/2
@@ -101,11 +101,11 @@ class OmniBotEnv(gym.Env):
 
         # reward model (here) (for now add a sparse reward model)
         if np.linalg.norm(self.robot.pose[0:2]-self.target_pose[0:2]) < 1.0e-2: # within 10cm radius
-            rewards = 1.0
+            rewards = 2.0
             if abs(self.robot.pose[2,0]-self.target_pose[2,0]) < 1.0e-1: # within 0.1 rads
                 rewards = 2.0
         else:
-            rewards = -0.1
+            rewards = -1.0*np.linalg.norm(self.robot.pose[0:2]-self.target_pose[0:2], ord=2) # negative reward for being far away from target
         
         # record trajectory of bot for visualization in window
         self.robot_trajectory.append(self.robot.pose[0:2].flatten().tolist()) # in [m]

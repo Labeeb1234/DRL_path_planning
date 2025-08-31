@@ -16,6 +16,7 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.utils import constant_fn
 from stable_baselines3.common.vec_env import VecNormalize
 from stable_baselines3.common.callbacks import CheckpointCallback, LogEveryNTimesteps
+from stable_baselines3.common.callbacks import BaseCallback
 from gymnasium.wrappers import FlattenObservation
 
 # Helper functions for saving
@@ -60,6 +61,22 @@ def process_sb3_cfg(cfg: dict, num_envs: int):
         return hyperparams
     return update_dict(cfg, 0)
 
+# custom callback function to render frame at regular intervals
+class RenderCallback(BaseCallback):
+    def __init__(self, render_freq: int, verbose: int = 0):
+        super().__init__(verbose)
+        self.render_freq = render_freq
+    
+    def _on_step(self):
+        env = self.model.get_env()
+        if self.n_calls % self.render_freq == 0:
+            while hasattr(env, "envs"):
+                env = env.envs[0]  # unwrap DummyVecEnv
+            if hasattr(env, "render"):
+                env.render()  # now calls OmniBotEnv.render("human")
+        return True
+
+
 env_cfg = defaultdict() # environment configuration dictionary
 def main():
 
@@ -98,7 +115,7 @@ def main():
     n_timesteps = agent_cfg.pop("n_timesteps")
 
     # Create vectorized environment
-    env = make_vec_env('OmniBot-v0', n_envs=num_envs, wrapper_class=FlattenObservation) # wrapped to DummyVecEnv 
+    env = make_vec_env('OmniBot-v0', n_envs=num_envs, wrapper_class=FlattenObservation, env_kwargs={"render_mode": "human"}) # wrapped to DummyVecEnv 
     # Normalize environment if needed
     norm_keys = {"normalize_input", "normalize_value", "clip_obs"}
     norm_args = {}
@@ -124,7 +141,7 @@ def main():
         save_freq=1000, save_path=log_dir, name_prefix="model", verbose=2
     )
     # logging and checkpoint callback every log_interval timesteps
-    callbacks = [checkpoint_callback, LogEveryNTimesteps(n_steps=log_interval)]
+    callbacks = [checkpoint_callback, LogEveryNTimesteps(n_steps=log_interval), RenderCallback(render_freq=1000)]
 
     # Train the agent
     agent.learn(total_timesteps=n_timesteps, callback=callbacks, progress_bar=True)
