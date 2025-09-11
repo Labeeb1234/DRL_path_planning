@@ -9,7 +9,7 @@ class OmniBot:
         # self.m = m
         # self.Icz = Icz 
         # centre of mass pose/centre of gravity pose
-        # self.pose_com = np.array(com_vec).reshape((2,1)) # assuming 2D-motion dynamics
+        # self.pose_com = np.array(com_vec).reshape((2,1)) # assuming 2D-motion dynamics 
 
         # wheel config matrix (forward kinematics)
         self.W = np.array([

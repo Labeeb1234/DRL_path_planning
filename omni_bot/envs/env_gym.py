@@ -9,7 +9,7 @@ from omni_bot.omni_bot import OmniBot
 class OmniBotEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
-    def __init__(self, render_mode=None, SIZE=[5,5], goal_pose = np.array([1.5,1.0,0.0])):
+    def __init__(self, render_mode=None, SIZE=[5,5], goal_pose = np.array([1.5,1.0,0.0])): 
         super(OmniBotEnv, self).__init__()
         # env size
         self.size = SIZE # size of the env is 5x5 measured in metres
@@ -33,7 +33,7 @@ class OmniBotEnv(gym.Env):
             {
                 "bot_pose": gym.spaces.Box(low=-5.0, high=5.0, shape=(3,), dtype=np.float32),
                 "robot_vel_global": gym.spaces.Box(low=-np.inf, high=np.inf, shape=(3,), dtype=np.float32),
-                "target_pose": gym.spaces.Box(low=-5.0, high=5.0, shape=(3,), dtype=np.float32)
+                "distance_to_target": gym.spaces.Box(low=-5.0, high=5.0, shape=(1,), dtype=np.float32)
             }
         )
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -46,13 +46,12 @@ class OmniBotEnv(gym.Env):
         return {
             "bot_pose": self.robot.pose.flatten().astype(np.float32),
             "robot_vel_global": self.robot_vel_global.flatten().astype(np.float32),
-            "target_pose": self.target_pose.flatten().astype(np.float32)
+            "distance_to_target": np.linalg.norm(self.target_pose[0:2]-self.robot.pose[0:2],ord=2).astype(np.float32) # euclidean distance in [m] units
         }
 
     def _get_info(self):
         return {
             "distance_to_target": np.linalg.norm(self.target_pose[0:2]-self.robot.pose[0:2], ord=2).astype(np.float32) # eucledian distance since units are in [m]
-            # maybe add some reward type informations later on
         }
     
     def reset(self, seed: Optional[int]=None, options: Optional[dict]=None):
@@ -60,6 +59,7 @@ class OmniBotEnv(gym.Env):
         super().reset(seed=seed)
         # set the robot to the origin
         self.robot.pose = np.array([0.0, 0.0, 0.0]).reshape(3,1)
+        self.robot_vel_global = np.array([0.0, 0.0, 0.0]).reshape(3,1) # resetting robot global vel
         # random robot pose as well as target pose on reset
         # self.robot.pose[0:2] = self.size[0]*np.random.random(size=(2,1)) - self.size[0]/2
         # self.robot.pose[2,0] = np.random.uniform(-np.pi, np.pi) # randomize orientation
@@ -67,7 +67,7 @@ class OmniBotEnv(gym.Env):
         self.target_pose = self.target_pose # set initial target pose
         self.target_pose[0:2] = self.size[0]*np.random.random(size=(2,1)) - self.size[0]/2
         self.target_pose[2,0] = np.random.uniform(-np.pi, np.pi) # randomize orientation
-        
+        # resetting observations and info of the env
         observation = self._get_obs()
         info = self._get_info()
 
@@ -83,6 +83,7 @@ class OmniBotEnv(gym.Env):
         # move bot
         omega = self.robot.inverse_kinematics(body_vel=action) # get wheel vel[rad/s]
         global_bot_vel = self.robot.forward_kinematics(omega=omega)
+        self.robot_vel_global = global_bot_vel # updating robot global vel observation
         # update odometry/pose of bot at physics step rate
         self.robot.update_odom(vel_global=global_bot_vel, dt=1/60) # phys up_rate=60Hz(for now) --> if less than render frames then no ping/lag in viz
         # record observations
@@ -99,14 +100,18 @@ class OmniBotEnv(gym.Env):
             terminated = False
         truncated = False
 
-        # reward model (here) (for now add a sparse reward model)
+        # sparce reward model (here) (for now add a sparse reward model)
+        rewards = 0.0
         if np.linalg.norm(self.robot.pose[0:2]-self.target_pose[0:2]) < 1.0e-2: # within 10cm radius
             rewards = 2.0
             if abs(self.robot.pose[2,0]-self.target_pose[2,0]) < 1.0e-1: # within 0.1 rads
                 rewards = 2.0
-        else:
-            rewards = -1.0*np.linalg.norm(self.robot.pose[0:2]-self.target_pose[0:2], ord=2) # negative reward for being far away from target
         
+        # ---------- new reward model (testing here) -----------
+        
+
+        # ------------------------------------------------------
+
         # record trajectory of bot for visualization in window
         self.robot_trajectory.append(self.robot.pose[0:2].flatten().tolist()) # in [m]
         # render the viz frames
