@@ -6,10 +6,10 @@ class OmniBot:
     # def __init__(self, a, L, W, t, m, Icz, com_vec=[0.0, 0.0], inital_pos=(0,0,0)):
     def __init__(self, a, L, W, t, initial_pos=(0,0,0)):
         self.a, self.l, self.w, self.t = a, L, W, t
-        # self.m = m
+        # self.m = m  
         # self.Icz = Icz 
         # centre of mass pose/centre of gravity pose
-        # self.pose_com = np.array(com_vec).reshape((2,1)) # assuming 2D-motion dynamics 
+        # self.pose_com = np.array(com_vec).reshape((2,1)) # assuming 2D-motion dynamics
 
         # wheel config matrix (forward kinematics)
         self.W = np.array([

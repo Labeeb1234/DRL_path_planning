@@ -5,6 +5,63 @@ import numpy as np
 import time
 
 
+def euler_to_quaternion(roll, pitch, yaw, torch=False, device='cpu'):
+    """
+    Convert Euler angles to quaternion. in XYZ convention. Brytan's convention.
+
+    Args:
+        roll (float): Roll angle in radians.
+        pitch (float): Pitch angle in radians.
+        yaw (float): Yaw angle in radians.
+        torch (bool): Whether to return a torch tensor.
+        device (str): Device for torch tensor. (only required if torch=True)
+    Returns:
+        np.array: Quaternion [w, x, y, z].
+    """
+    qx = sin(roll/2) * cos(pitch/2) * cos(yaw/2) - cos(roll/2) * sin(pitch/2) * sin(yaw/2)
+    qy = cos(roll/2) * sin(pitch/2) * cos(yaw/2) + sin(roll/2) * cos(pitch/2) * sin(yaw/2)
+    qz = cos(roll/2) * cos(pitch/2) * sin(yaw/2) - sin(roll/2) * sin(pitch/2) * cos(yaw/2)
+    qw = cos(roll/2) * cos(pitch/2) * cos(yaw/2) + sin(roll/2) * sin(pitch/2) * sin(yaw/2)
+
+    if torch:
+        import torch
+        return torch.tensor([qw, qx, qy, qz], dtype=torch.float32, device=device) # w, x, y, z ---> shape (4,)
+
+    return np.array([qw, qx, qy, qz])  # w, x, y, z ---> shape (4,)
+
+def quaternion_to_euler(qw, qx, qy, qz):
+    """
+    Convert quaternion to Euler angles. in XYZ convention. Brytan's convention.
+
+    Args:
+        qx (float): Quaternion x component.
+        qy (float): Quaternion y component.
+        qz (float): Quaternion z component.
+        qw (float): Quaternion w component.
+
+    Returns:
+        tuple: Euler angles (roll, pitch, yaw) in radians.
+    """
+    # roll (x-axis rotation)
+    sinr_cosp = 2 * (qw * qx + qy * qz)
+    cosr_cosp = 1 - 2 * (qx * qx + qy * qy)
+    roll = atan2(sinr_cosp, cosr_cosp)
+
+    # pitch (y-axis rotation)
+    sinp = 2 * (qw * qy - qz * qx)
+    if abs(sinp) >= 1:
+        pitch = pi/2 * np.sign(sinp)  # use 90 degrees if out of range
+    else:
+        pitch = np.arcsin(sinp)
+
+    # yaw (z-axis rotation)
+    siny_cosp = 2 * (qw * qz + qx * qy)
+    cosy_cosp = 1 - 2 * (qy * qy + qz * qz)
+    yaw = atan2(siny_cosp, cosy_cosp)
+
+    return roll, pitch, yaw  # in radians
+
+
 def get_transform(state): # state -> [x, y, theta] 3x1 vector
 
     rotation = np.array([

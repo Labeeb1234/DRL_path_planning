@@ -65,8 +65,8 @@ class OmniBotEnv(gym.Env):
         # self.robot.pose[2,0] = np.random.uniform(-np.pi, np.pi) # randomize orientation
         self.robot_trajectory = [self.robot.pose[0:2].flatten().tolist()] # reset trajectory
         self.target_pose = self.target_pose # set initial target pose
-        self.target_pose[0:2] = self.size[0]*np.random.random(size=(2,1)) - self.size[0]/2
-        self.target_pose[2,0] = np.random.uniform(-np.pi, np.pi) # randomize orientation
+        # self.target_pose[0:2] = self.size[0]*np.random.random(size=(2,1)) - self.size[0]/2
+        # self.target_pose[2,0] = np.random.uniform(-np.pi, np.pi) # randomize orientation
         # resetting observations and info of the env
         observation = self._get_obs()
         info = self._get_info()
@@ -92,7 +92,7 @@ class OmniBotEnv(gym.Env):
         # print(f"Bot Distance from origin: {np.linalg.norm(self.robot.pose[0:2], ord=2):.3f} m")      
         
         # check for termination conditions
-        if np.linalg.norm(self.robot.pose[0:2]-self.target_pose[0:2]) < 1.0e-4: # within 1cm radius
+        if np.linalg.norm(self.robot.pose[0:2]-self.target_pose[0:2]) < 1.0e-2: # within 1cm radius
             terminated = True
         elif np.linalg.norm(self.robot.pose[0:2], ord=2) > 3.5: 
             terminated = True # if bot goes out of bounds
@@ -100,17 +100,20 @@ class OmniBotEnv(gym.Env):
             terminated = False
         truncated = False
 
-        # sparce reward model (here) (for now add a sparse reward model)
-        rewards = 0.0
-        if np.linalg.norm(self.robot.pose[0:2]-self.target_pose[0:2]) < 1.0e-2: # within 10cm radius
-            rewards = 2.0
-            if abs(self.robot.pose[2,0]-self.target_pose[2,0]) < 1.0e-1: # within 0.1 rads
-                rewards = 2.0
-        
-        # ---------- new reward model (testing here) -----------
-        
-
-        # ------------------------------------------------------
+        # sparse reward model (here) (for now add a sparse reward model)
+        # if np.linalg.norm(self.robot.pose[0:2]-self.target_pose[0:2], ord=2) < 1e-1: # within 0.1m radius
+        #     rewards = 1.0
+        #     if np.abs(self.robot.pose[2]-self.target_pose[2]) < 0.1: # within 0.1rads
+        #         rewards += 0.5
+        # elif np.linalg.norm(self.robot.pose[0:2]-self.target_pose[0:2], ord=2) < 0.5: # within 0.5m radius
+        #     rewards = 0.5
+        # else: # existing
+        #     rewards = -0.1
+           
+        # ---------- new reward model (testing here) (dense only rewards worked now onto better model with bonus for final goal reaching) -----------
+        rewards = -0.5*np.linalg.norm(self.robot.pose[0:2]-self.target_pose[0:2], ord=2) # distance based penalty/rewarding
+        rewards += -0.01*np.abs(self.robot.pose[2]-self.target_pose[2]) # orientation alignment
+        # ------------------------------------------------------------------------------------------------------------------------------------------
 
         # record trajectory of bot for visualization in window
         self.robot_trajectory.append(self.robot.pose[0:2].flatten().tolist()) # in [m]
@@ -154,17 +157,26 @@ class OmniBotEnv(gym.Env):
         for wheel_pos in wheel_positions:
             wheel_center = self.world_to_window((wheel_pos[0], wheel_pos[1]))
             pygame.draw.circle(canvas, color=(0,0,0), center=wheel_center, radius=5)
-        # marking robot trajectory as trace
+
+        # marking robot trajectory as trace (for path tracing sake, sanity check)
         robot_trace = [self.world_to_window((pos[0], pos[1])) for pos in self.robot_trajectory]
         if len(robot_trace) > 1:
             pygame.draw.lines(canvas, color=(0,0,255), closed=False, points=robot_trace, width=1)
 
+        # a sanity checker for distance_to_target param
+        pygame.draw.circle(
+            canvas,
+            color=(0, 255, 0),
+            center=self.world_to_window(self.target_pose[0:2].flatten()),
+            radius=int(0.1/self.scale), # 0.1m radius circle
+            width=1
+        )
+        
         if self.render_mode == "human":
             # The following line copies our drawings from `canvas` to the visible window
             self.window.blit(canvas, canvas.get_rect())
-            pygame.event.pump()
+            pygame.event.pump() 
             pygame.display.update()
-
             # We need to ensure that human-rendering occurs at the predefined framerate.
             # The following line will automatically add a delay to keep the framerate stable.
             self.clock.tick(self.metadata["render_fps"])
