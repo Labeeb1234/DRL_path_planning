@@ -15,9 +15,10 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.utils import constant_fn
 from stable_baselines3.common.vec_env import VecNormalize
-from stable_baselines3.common.callbacks import CheckpointCallback, LogEveryNTimesteps
+from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.callbacks import BaseCallback
 from gymnasium.wrappers import FlattenObservation
+
 
 # Helper functions for saving
 def dump_yaml(path, data):
@@ -30,7 +31,7 @@ def dump_pickle(path, data):
     with open(path, "wb") as f:
         pickle.dump(data, f)
 
-# recursively process the yaml config file
+# recursively process the yaml config file for the RL agent
 def process_sb3_cfg(cfg: dict, num_envs: int):
     def update_dict(hyperparams: dict[str, Any], depth: int) -> dict[str, Any]:
         for key, value in hyperparams.items():
@@ -114,7 +115,7 @@ def main():
     policy_arch = agent_cfg.pop("policy")
     n_timesteps = agent_cfg.pop("n_timesteps")
 
-    # Create vectorized environment
+    # Create vectorized environment (dummy vectorized environment hence single core processing)
     env = make_vec_env('OmniBot-v0', n_envs=num_envs, wrapper_class=FlattenObservation, env_kwargs={"render_mode": "human"}) # wrapped to DummyVecEnv 
     # Normalize environment if needed
     norm_keys = {"normalize_input", "normalize_value", "clip_obs"}
@@ -124,12 +125,12 @@ def main():
             norm_args[key] = agent_cfg.pop(key)
 
     env = VecNormalize(
-        env,
+        venv=env,
         training=True,
-        norm_obs=norm_args.get("normalize_input", True),
-        norm_reward=norm_args.get("normalize_value", False),
-        clip_obs=norm_args.get("clip_obs", 100.0),
-        gamma=agent_cfg.get("gamma", 0.99),
+        norm_obs=norm_args.get("normalize_input", True), # normalizing observation
+        norm_reward=norm_args.get("normalize_value", False), # not normalizing reward
+        clip_obs=norm_args.get("clip_obs", 100.0), # clipping observation to avoid large value
+        gamma=agent_cfg.get("gamma", 0.99), # discount factor
         clip_reward=np.inf,  # do not clip reward
     )
     
@@ -138,16 +139,18 @@ def main():
 
     # Callbacks (save every 1000 timesteps)
     checkpoint_callback = CheckpointCallback(
-        save_freq=1000, save_path=log_dir, name_prefix="model", verbose=2
+        save_freq=1000, save_path=log_dir, name_prefix="omnibot_model_v0", verbose=2
     )
     # logging and checkpoint callback every log_interval timesteps
-    callbacks = [checkpoint_callback, LogEveryNTimesteps(n_steps=log_interval), RenderCallback(render_freq=1000)]
+    callbacks = [checkpoint_callback]
 
     # Train the agent
     agent.learn(total_timesteps=n_timesteps, callback=callbacks, progress_bar=True)
 
     # Save final model
     agent.save(os.path.join(log_dir, "model"))
+    env.save(os.path.join(log_dir, "params", "vec_env_stats.pkl"))
+
     print(f"[INFO]: Model saved at {os.path.join(log_dir, 'model.zip')}")
 
     env.close()
