@@ -1,3 +1,6 @@
+- These aren't RL path planners or controllers just the standard algos (currently did some deterministic and heuristic path planners on simple 2d occupancy grids) [here](https://github.com/Labeeb1234/Sample/tree/main/path_planning_cpp)
+
+
 # Reinforcement Learning Based Path Planning on Mobile Robots
 
 - So this project is basically something I do in my off time. Started off by trying to learn DRL based path planning on robots.
